@@ -34,4 +34,4 @@ jobs:
           role-to-assume: arn:aws:iam::424987806936:role/GitHubS3DeployRole 
           aws-region: ${{ env.AWS_REGION }} 
       - name: Deploy to S3 
-        run: aws s3 sync site/ s3://${{ env.BUCKET_NAME }} --delete --profile selvam
+        run: aws s3 sync site/ s3://${{ env.BUCKET_NAME }} --delete 
