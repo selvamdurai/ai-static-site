@@ -1,95 +1,37 @@
-name: CI/CD - Build and Deploy Static Site
+name: CI/CD Pipeline (OIDC) 
 
-# Trigger workflow on push to main branch
-on:
-  push:
-    branches: [ main ]
+permissions: 
+  id-token: write    # allow GitHub to mint an OIDC id token for this run 
+  contents: read     # least-privilege repo access 
+ 
+on: 
+  push: 
+    branches: [ main ] 
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    
-    # Environment variables - update these values for your deployment
-    env:
-      BUCKET_NAME: your-s3-bucket-name-here
-      AWS_REGION: us-east-1
-    
-    steps:
-      # Step 1: Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      # Step 2: Validate that the site exists and show content
-      - name: Validate site structure
-        run: |
-          echo "Checking if site/index.html exists..."
-          if [ -f "site/index.html" ]; then
-            echo "✅ site/index.html found"
-            echo "📄 First 10 lines of index.html:"
-            head -n 10 site/index.html
-          else
-            echo "❌ site/index.html not found"
-            exit 1
-          fi
-      
-      # Step 3: Simple HTML validation (no dependencies needed)
-      - name: Basic HTML validation
-        run: |
-          echo "Running basic HTML checks..."
-          # Check for required HTML structure
-          if grep -q "<!doctype html>" site/index.html; then
-            echo "✅ DOCTYPE declaration found"
-          else
-            echo "⚠️  DOCTYPE declaration missing"
-          fi
-          
-          if grep -q "<html>" site/index.html; then
-            echo "✅ HTML tag found"
-          else
-            echo "❌ HTML tag missing"
-            exit 1
-          fi
-          
-          if grep -q "<head>" site/index.html && grep -q "<body>" site/index.html; then
-            echo "✅ Basic HTML structure (head/body) found"
-          else
-            echo "❌ Missing head or body tags"
-            exit 1
-          fi
-      
-      # Step 4: Configure AWS credentials (COMMENTED OUT - requires secrets)
-      # IMPORTANT: Uncomment this step only after adding the following secrets to your repository:
-      # - AWS_ACCESS_KEY_ID
-      # - AWS_SECRET_ACCESS_KEY  
-      # - AWS_REGION (or update the env variable above)
-      # Go to: Repository Settings > Secrets and variables > Actions > New repository secret
-      #
-      # - name: Configure AWS credentials
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ env.AWS_REGION }}
-      
-      # Step 5: Deploy to S3 (COMMENTED OUT - requires AWS setup)
-      # IMPORTANT: Uncomment this step only after:
-      # 1. Adding AWS secrets to repository (see step above)
-      # 2. Creating an S3 bucket and updating BUCKET_NAME in env section
-      # 3. Ensuring the AWS credentials have s3:PutObject permissions for the bucket
-      # 4. Optionally configuring the S3 bucket for static website hosting
-      #
-      # - name: Deploy to S3
-      #   run: |
-      #     echo "Deploying to S3 bucket: $BUCKET_NAME"
-      #     aws s3 sync site/ s3://$BUCKET_NAME --delete
-      #     echo "✅ Deployment complete!"
-      
-      # Step 6: Show deployment status
-      - name: Deployment status
-        run: |
-          echo "🚀 Build completed successfully!"
-          echo "📝 To enable AWS deployment:"
-          echo "   1. Add AWS secrets to repository settings"
-          echo "   2. Update BUCKET_NAME and AWS_REGION in env section"
-          echo "   3. Uncomment the AWS configuration and deployment steps"
-          echo "   4. Create and configure your S3 bucket for static hosting"
+env: 
+  BUCKET_NAME: ai-static-site-2025-selvam   # replace with your bucket or use repo variable 
+  AWS_REGION: us-east-1 
+
+jobs: 
+  deploy: 
+    runs-on: ubuntu-latest 
+
+    steps: 
+      - name: Checkout code 
+        uses: actions/checkout@v4 
+      - name: Verify site files 
+        run: | 
+          if [ ! -f site/index.html ]; then 
+            echo "Error: site/index.html not found" 
+            exit 1 
+          fi 
+          echo "Site verification passed" 
+          echo "Preview (first 10 lines):" 
+          head -n 10 site/index.html || true 
+      - name: Configure AWS credentials (OIDC) 
+        uses: aws-actions/configure-aws-credentials@v4 
+        with: 
+          role-to-assume: arn:aws:iam::424987806936:role/GitHubS3DeployRole 
+          aws-region: ${{ env.AWS_REGION }} 
+      - name: Deploy to S3 
+        run: aws s3 sync site/ s3://${{ env.BUCKET_NAME }} --delete 
